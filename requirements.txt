@@ -1,0 +1,6 @@
+# TelcoShield Dependencies
+# Core adapter and interactive demo run on standard Python library!
+# Optional dependencies for extended production deployments:
+# requests>=2.31.0
+# pydantic>=2.0.0
+# scapy>=2.5.0
