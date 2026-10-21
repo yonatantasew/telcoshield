@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 TelcoShield Production Web Server & Interactive Demo Dashboard
-Refactored UI: Minimalist, high-impact presentation mode with progressive disclosure for advanced parameters.
+Features: Minimalist Cult UI, Collapsible Advanced Drawer, and Live Animated SMS Network Transit Flow.
 """
 
 import json
@@ -26,7 +26,7 @@ MOCK_SIM_DATABASE = {
     "+251911223344": datetime.now(timezone.utc) - timedelta(days=210),     # Established SIM
 }
 
-HTML_REFACTORED_UI = """<!DOCTYPE html>
+HTML_ANIMATED_UI = """<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -75,6 +75,29 @@ HTML_REFACTORED_UI = """<!DOCTYPE html>
       box-shadow: 0 0 20px -3px rgba(56, 189, 248, 0.3);
     }
     input[type=range] { accent-color: #38bdf8; }
+
+    /* Animated Flow Track & Nodes */
+    .flow-line {
+      stroke-dasharray: 6 6;
+      animation: dashmove 1.5s linear infinite;
+    }
+    @keyframes dashmove {
+      from { stroke-dashoffset: 24; }
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* Packet pulse */
+    .packet-orb {
+      transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .node-pulse {
+      animation: nodeGlow 2s ease-in-out infinite alternate;
+    }
+    @keyframes nodeGlow {
+      from { filter: drop-shadow(0 0 2px currentColor); }
+      to { filter: drop-shadow(0 0 8px currentColor); }
+    }
   </style>
 </head>
 <body class="text-slate-100 min-h-screen antialiased flex flex-col justify-between p-4 sm:p-6 lg:p-8">
@@ -182,6 +205,85 @@ HTML_REFACTORED_UI = """<!DOCTYPE html>
 
     </div>
 
+    <!-- LIVE ANIMATED SMS NETWORK TRANSIT FLOW (NEW!) -->
+    <div class="mb-6 glass-panel rounded-2xl p-4 border border-slate-800/90 relative overflow-hidden">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-sky-400 text-sm">🛰️</span>
+          <span class="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
+            Live Network Signaling Flow
+          </span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="flowStatusText" class="text-[11px] font-mono text-slate-400">Ready to trace</span>
+          <button onclick="replayFlowAnimation()" class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 transition-colors">
+            🔁 Replay Flow
+          </button>
+        </div>
+      </div>
+
+      <!-- Flow SVG Visualization -->
+      <div class="relative w-full h-24 bg-slate-950/70 rounded-xl border border-slate-900/80 p-2 flex items-center justify-between">
+        
+        <!-- Node 1: Originator -->
+        <div class="flex flex-col items-center z-10 w-24 text-center">
+          <div id="node1" class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-sm shadow-md transition-all">
+            📱
+          </div>
+          <span class="text-[10px] font-mono font-semibold text-slate-300 mt-1">Originator</span>
+          <span id="node1Sub" class="text-[9px] font-mono text-slate-500">+2519...</span>
+        </div>
+
+        <!-- Node 2: Ingress Gateway -->
+        <div class="flex flex-col items-center z-10 w-24 text-center">
+          <div id="node2" class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-sm shadow-md transition-all">
+            🌐
+          </div>
+          <span class="text-[10px] font-mono font-semibold text-slate-300 mt-1">SMPP Ingress</span>
+          <span id="node2Sub" class="text-[9px] font-mono text-slate-500">domestic</span>
+        </div>
+
+        <!-- Node 3: PAiCore mBERT -->
+        <div class="flex flex-col items-center z-10 w-28 text-center">
+          <div id="node3" class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-sm shadow-md transition-all">
+            🧠
+          </div>
+          <span class="text-[10px] font-mono font-semibold text-slate-300 mt-1">PAiCore mBERT</span>
+          <span id="node3Sub" class="text-[9px] font-mono text-emerald-400">HAM (98.8%)</span>
+        </div>
+
+        <!-- Node 4: TelcoShield Edge Firewall -->
+        <div class="flex flex-col items-center z-10 w-28 text-center">
+          <div id="node4" class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-sm shadow-md transition-all">
+            🛡️
+          </div>
+          <span class="text-[10px] font-mono font-semibold text-slate-300 mt-1">TelcoShield Edge</span>
+          <span id="node4Sub" class="text-[9px] font-mono text-rose-400">BLOCKED</span>
+        </div>
+
+        <!-- Node 5: Destination Handset -->
+        <div class="flex flex-col items-center z-10 w-24 text-center">
+          <div id="node5" class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-sm shadow-md transition-all">
+            🏪
+          </div>
+          <span class="text-[10px] font-mono font-semibold text-slate-300 mt-1">Merchant Phone</span>
+          <span id="node5Sub" class="text-[9px] font-mono text-slate-500">PROTECTED</span>
+        </div>
+
+        <!-- Background Connecting SVG Line -->
+        <svg class="absolute inset-x-8 top-1/2 -translate-y-4 w-[calc(100%-64px)] h-8 pointer-events-none z-0" preserveAspectRatio="none">
+          <line x1="5%" y1="50%" x2="95%" y2="50%" stroke="#1e293b" stroke-width="2" />
+          <line id="activeFlowLine" x1="5%" y1="50%" x2="5%" y2="50%" stroke="#38bdf8" stroke-width="2" class="flow-line transition-all duration-700" />
+        </svg>
+
+        <!-- Traveling Packet Dot -->
+        <div id="travelingPacket" class="packet-orb absolute top-1/2 -translate-y-4 w-4 h-4 rounded-full bg-sky-400 shadow-lg shadow-sky-400/50 z-20 flex items-center justify-center text-[8px] font-bold text-slate-950 pointer-events-none" style="left: 5%;">
+          ✉️
+        </div>
+
+      </div>
+    </div>
+
     <!-- Main Workspace (5 Cols Input / 7 Cols Telemetry) -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       
@@ -241,27 +343,6 @@ HTML_REFACTORED_UI = """<!DOCTYPE html>
       <!-- Right Column: Results & Telemetry (7 Cols) -->
       <div class="lg:col-span-7 space-y-4">
         
-        <!-- Visual Pipeline Breadcrumbs -->
-        <div class="p-3 rounded-xl glass-panel text-xs flex items-center justify-between font-mono text-slate-400">
-          <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
-            <span>SMPP Ingress</span>
-          </div>
-          <span>→</span>
-          <div class="flex items-center gap-1.5">
-            <span class="text-slate-300">mBERT NLP</span>
-            <span id="pipelineNlp" class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">HAM</span>
-          </div>
-          <span>→</span>
-          <div class="flex items-center gap-1.5">
-            <span class="text-slate-300">Signaling Edge</span>
-          </div>
-          <span>→</span>
-          <div class="flex items-center gap-1.5 font-bold">
-            <span id="pipelineVerdict" class="text-rose-400">BLOCKED</span>
-          </div>
-        </div>
-
         <!-- Side-by-Side Comparison Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           
@@ -381,6 +462,8 @@ HTML_REFACTORED_UI = """<!DOCTYPE html>
       }
     };
 
+    let lastResultData = null;
+
     function pickScenario(key, btnElem) {
       document.querySelectorAll('.scenario-pill').forEach(b => b.classList.remove('scenario-active'));
       if (btnElem) btnElem.classList.add('scenario-active');
@@ -455,7 +538,9 @@ HTML_REFACTORED_UI = """<!DOCTYPE html>
           })
         });
         const data = await resp.json();
+        lastResultData = data;
         renderCleanResults(data);
+        animateNetworkFlow(data);
       } catch (e) {
         alert("Error: " + e);
       } finally {
@@ -466,17 +551,6 @@ HTML_REFACTORED_UI = """<!DOCTYPE html>
 
     function renderCleanResults(data) {
       document.getElementById('latencyDisplay').innerText = data.total_latency_ms + " ms";
-
-      // Pipeline Breadcrumbs
-      const pipeNlp = document.getElementById('pipelineNlp');
-      pipeNlp.innerText = data.paicore_nlp_label.toUpperCase();
-      pipeNlp.className = data.paicore_nlp_label === 'ham' ? 
-        "text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-mono" : 
-        "text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 font-mono";
-
-      const pipeVerdict = document.getElementById('pipelineVerdict');
-      pipeVerdict.innerText = data.final_verdict;
-      pipeVerdict.className = data.final_verdict === 'BLOCKED_FRAUD' ? "text-rose-400 font-bold" : "text-emerald-400 font-bold";
 
       // 1. Baseline Card
       const otsBadge = document.getElementById('otsVerdictBadge');
@@ -524,6 +598,105 @@ HTML_REFACTORED_UI = """<!DOCTYPE html>
       }
     }
 
+    // ANIMATE NETWORK FLOW FUNCTION
+    function animateNetworkFlow(data) {
+      const packet = document.getElementById('travelingPacket');
+      const flowLine = document.getElementById('activeFlowLine');
+      const statusText = document.getElementById('flowStatusText');
+
+      const node1 = document.getElementById('node1');
+      const node2 = document.getElementById('node2');
+      const node3 = document.getElementById('node3');
+      const node4 = document.getElementById('node4');
+      const node5 = document.getElementById('node5');
+
+      // Update Subtitles
+      document.getElementById('node1Sub').innerText = data.sender_id.length > 12 ? data.sender_id.substring(0, 10) + '..' : data.sender_id;
+      document.getElementById('node2Sub').innerText = data.ingress_route;
+      document.getElementById('node3Sub').innerText = data.paicore_nlp_label.toUpperCase() + ' (' + (data.paicore_nlp_confidence * 100).toFixed(0) + '%)';
+      document.getElementById('node3Sub').className = data.paicore_nlp_label === 'ham' ? "text-[9px] font-mono text-emerald-400" : "text-[9px] font-mono text-rose-400";
+      document.getElementById('node4Sub').innerText = data.final_verdict;
+      document.getElementById('node4Sub').className = data.final_verdict === 'BLOCKED_FRAUD' ? "text-[9px] font-mono text-rose-400 font-bold" : "text-[9px] font-mono text-emerald-400 font-bold";
+
+      // Reset Styles
+      [node1, node2, node3, node4, node5].forEach(n => {
+        n.className = "w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-sm shadow-md transition-all";
+      });
+
+      // Animate Progression
+      packet.style.left = "5%";
+      packet.className = "packet-orb absolute top-1/2 -translate-y-4 w-4 h-4 rounded-full bg-sky-400 shadow-lg shadow-sky-400/50 z-20 flex items-center justify-center text-[8px] font-bold text-slate-950 pointer-events-none";
+      flowLine.setAttribute('x2', '5%');
+      statusText.innerText = "Transmitting PDU from originator...";
+
+      // Stage 1: Originator to Ingress (200ms)
+      setTimeout(() => {
+        packet.style.left = "27%";
+        flowLine.setAttribute('x2', '27%');
+        node2.className = "w-10 h-10 rounded-xl bg-slate-900 border-2 border-sky-400 flex items-center justify-center text-sm shadow-lg shadow-sky-400/20";
+        statusText.innerText = "Ingress verified via " + data.ingress_route;
+      }, 250);
+
+      // Stage 2: Ingress to PAiCore mBERT (600ms)
+      setTimeout(() => {
+        packet.style.left = "50%";
+        flowLine.setAttribute('x2', '50%');
+        if (data.paicore_nlp_label === 'ham') {
+          node3.className = "w-10 h-10 rounded-xl bg-emerald-950/40 border-2 border-emerald-500 flex items-center justify-center text-sm shadow-lg shadow-emerald-500/20 text-emerald-400";
+          statusText.innerText = "mBERT NLP analyzed text: Classified HAM (Legitimate)";
+        } else {
+          node3.className = "w-10 h-10 rounded-xl bg-rose-950/40 border-2 border-rose-500 flex items-center justify-center text-sm shadow-lg shadow-rose-500/20 text-rose-400";
+          statusText.innerText = "mBERT NLP flagged phishing patterns!";
+        }
+      }, 650);
+
+      // Stage 3: mBERT to TelcoShield Edge (1100ms)
+      setTimeout(() => {
+        packet.style.left = "73%";
+        flowLine.setAttribute('x2', '73%');
+
+        if (data.final_verdict === 'BLOCKED_FRAUD') {
+          // INTERCEPTED & DROPPED!
+          node4.className = "w-10 h-10 rounded-xl bg-rose-950/60 border-2 border-rose-500 flex items-center justify-center text-sm shadow-xl shadow-rose-500/30 text-rose-400";
+          packet.className = "packet-orb absolute top-1/2 -translate-y-4 w-5 h-5 rounded-full bg-rose-500 shadow-xl shadow-rose-500/80 z-20 flex items-center justify-center text-[10px] text-white font-bold pointer-events-none scale-125";
+          packet.innerText = "🛑";
+          flowLine.setAttribute('stroke', '#f43f5e');
+          
+          if (data.metadata_override) {
+            statusText.innerHTML = "<span class='text-amber-400 font-bold'>🚨 BLOCKED! Metadata Layer intercepted NLP false negative!</span>";
+          } else {
+            statusText.innerHTML = "<span class='text-rose-400 font-bold'>🚨 BLOCKED! Dropped at SMSC border. Handset protected.</span>";
+          }
+          
+          // Destination is safe
+          node5.className = "w-10 h-10 rounded-xl bg-slate-900 border border-emerald-500/40 flex items-center justify-center text-sm opacity-60";
+          document.getElementById('node5Sub').innerText = "PROTECTED";
+        } else {
+          // ALLOWED: Transits smoothly to Destination Handset
+          node4.className = "w-10 h-10 rounded-xl bg-emerald-950/40 border-2 border-emerald-500 flex items-center justify-center text-sm shadow-lg shadow-emerald-500/20 text-emerald-400";
+          
+          setTimeout(() => {
+            packet.style.left = "95%";
+            flowLine.setAttribute('x2', '95%');
+            flowLine.setAttribute('stroke', '#10b981');
+            node5.className = "w-10 h-10 rounded-xl bg-emerald-950/60 border-2 border-emerald-500 flex items-center justify-center text-sm shadow-xl shadow-emerald-500/30 text-emerald-400";
+            packet.className = "packet-orb absolute top-1/2 -translate-y-4 w-4 h-4 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/50 z-20 flex items-center justify-center text-[8px] text-slate-950 font-bold pointer-events-none";
+            packet.innerText = "✓";
+            statusText.innerHTML = "<span class='text-emerald-400 font-bold'>✓ DELIVERED: Official verified message safely arrived at handset.</span>";
+            document.getElementById('node5Sub').innerText = "DELIVERED";
+          }, 400);
+        }
+      }, 1100);
+    }
+
+    function replayFlowAnimation() {
+      if (lastResultData) {
+        animateNetworkFlow(lastResultData);
+      } else {
+        runInspection();
+      }
+    }
+
     async function runCamaraCheck() {
       const phone = document.getElementById('camaraPhone').value;
       const out = document.getElementById('camaraOutput');
@@ -556,12 +729,12 @@ class TelcoShieldHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(HTML_REFACTORED_UI.encode("utf-8"))
+            self.wfile.write(HTML_ANIMATED_UI.encode("utf-8"))
         elif self.path == "/health" or self.path == "/api/health":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"status": "ok", "engine": "refactored_v1"}).encode("utf-8"))
+            self.wfile.write(json.dumps({"status": "ok", "engine": "animated_v2"}).encode("utf-8"))
         else:
             self.send_response(404)
             self.end_headers()
@@ -640,7 +813,7 @@ class TelcoShieldHandler(BaseHTTPRequestHandler):
 def main():
     port = 8090
     server = HTTPServer(("0.0.0.0", port), TelcoShieldHandler)
-    print(f"[*] TelcoShield Refactored UI Live Demo running at http://localhost:{port}")
+    print(f"[*] TelcoShield Animated Flow Live Demo running at http://localhost:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
