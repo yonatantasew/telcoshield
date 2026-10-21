@@ -1,35 +1,42 @@
 #!/usr/bin/env python3
 """
-TelcoShield Interactive Demo Server (Minimalist / Clean Demo Edition)
-Simple, high-impact presentation layout with collapsible Advanced Telecom Parameters.
+TelcoShield Production Web Server & Interactive Demo Dashboard
+Refactored UI: Minimalist, high-impact presentation mode with progressive disclosure for advanced parameters.
 """
 
 import json
 import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime, timezone, timedelta
-from adapter import TelcoShieldAdapter
 
-adapter = TelcoShieldAdapter(ots_api_url="http://localhost:8002/predict/")
+from telcoshield import (
+    TelcoShieldEngine,
+    MessageContext,
+    IngressRoute,
+    Verdict,
+    Severity
+)
+
+engine = TelcoShieldEngine()
 
 # Simulated Carrier HSS/HLR SIM-Swap database
 MOCK_SIM_DATABASE = {
     "+251933445566": datetime.now(timezone.utc) - timedelta(hours=3),      # Swapped 3 hours ago
     "+251922334455": datetime.now(timezone.utc) - timedelta(hours=14),     # Swapped 14 hours ago
-    "+251911223344": datetime.now(timezone.utc) - timedelta(days=210),     # Clean
+    "+251911223344": datetime.now(timezone.utc) - timedelta(days=210),     # Established SIM
 }
 
-HTML_CLEAN_UI = """<!DOCTYPE html>
+HTML_REFACTORED_UI = """<!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TelcoShield Demo | PAiCore OpenTextShield + Telecom Edge</title>
+  <title>TelcoShield Demo | Carrier-Grade Signaling & Fraud Defense</title>
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -51,20 +58,23 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
     body {
       background-color: #030712;
       background-image: 
-        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.05) 0px, transparent 50%),
-        radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.06) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
       background-attachment: fixed;
     }
-    .glass-card {
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.07);
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
     }
     .scenario-active {
       border-color: #38bdf8 !important;
-      background: rgba(30, 41, 59, 0.8) !important;
+      background: rgba(30, 41, 59, 0.85) !important;
+      box-shadow: 0 0 20px -3px rgba(56, 189, 248, 0.3);
     }
+    input[type=range] { accent-color: #38bdf8; }
   </style>
 </head>
 <body class="text-slate-100 min-h-screen antialiased flex flex-col justify-between p-4 sm:p-6 lg:p-8">
@@ -72,62 +82,72 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
   <div class="max-w-5xl mx-auto w-full">
     
     <!-- Top Header -->
-    <header class="flex items-center justify-between pb-6 mb-6 border-b border-slate-800/80">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-800/80">
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/25">
           <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
           </svg>
         </div>
         <div>
           <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            TelcoShield <span class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-sky-400 font-mono font-medium">Demo Mode</span>
+            TelcoShield <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-sky-400 font-mono font-medium">Demo Mode</span>
           </h1>
-          <p class="text-xs text-slate-400">PAiCore OpenTextShield + Telecom Edge Defense</p>
+          <p class="text-xs text-slate-400">PAiCore OpenTextShield v2.11 + Telecom Signaling Edge</p>
         </div>
       </div>
 
       <!-- Live Connection Pill -->
-      <div class="flex items-center gap-2 px-3 py-1 rounded-full glass-card text-xs text-emerald-400 font-medium">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        PAiCore OTS Engine Active
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel text-xs text-emerald-400 font-medium">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        PAiCore mBERT: Online (Port 8002)
       </div>
     </header>
 
-    <!-- 3 Essential Demo Scenarios -->
+    <!-- 3 Core Scenarios (Executive Demo View) -->
     <div class="mb-6">
-      <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5 font-mono">
-        Select Scenario to Demonstrate:
+      <div class="flex items-center justify-between mb-2.5">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+          Select Demo Scenario:
+        </span>
+        <button onclick="toggleAdvancedScenarios()" id="advScenBtn" class="text-[11px] font-mono text-slate-500 hover:text-sky-400 transition-colors">
+          + Show Advanced Scenarios (Grey Route / Mule SIM)
+        </button>
       </div>
+
+      <!-- Basic Scenarios -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         
         <!-- Scenario 1: The Blind Spot (The Star of the Demo) -->
-        <button onclick="pickScenario('case4a', this)" class="scenario-pill scenario-active text-left p-3.5 rounded-xl glass-card border transition-all duration-200 hover:border-slate-600">
-          <div class="flex items-center justify-between mb-1">
+        <button onclick="pickScenario('case4a', this)" class="scenario-pill scenario-active text-left p-3.5 rounded-xl glass-panel border transition-all duration-200 hover:border-slate-600">
+          <div class="flex items-center justify-between mb-1.5">
             <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
               THE BLIND SPOT
             </span>
             <span class="text-xs text-slate-500 font-mono">#01</span>
           </div>
           <div class="text-sm font-semibold text-slate-200">Fake Telebirr Payment Receipt</div>
-          <div class="text-xs text-slate-400 mt-0.5">Scam receipt sent from personal phone</div>
+          <div class="text-xs text-slate-400 mt-0.5">Scam receipt sent from personal phone (+2519...)</div>
         </button>
 
         <!-- Scenario 2: Control (Legitimate) -->
-        <button onclick="pickScenario('case4b', this)" class="scenario-pill text-left p-3.5 rounded-xl glass-card border transition-all duration-200 hover:border-slate-600">
-          <div class="flex items-center justify-between mb-1">
+        <button onclick="pickScenario('case4b', this)" class="scenario-pill text-left p-3.5 rounded-xl glass-panel border transition-all duration-200 hover:border-slate-600">
+          <div class="flex items-center justify-between mb-1.5">
             <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
               LEGITIMATE
             </span>
             <span class="text-xs text-slate-500 font-mono">#02</span>
           </div>
           <div class="text-sm font-semibold text-slate-200">Real Telebirr Receipt</div>
-          <div class="text-xs text-slate-400 mt-0.5">Sent from official verified shortcode</div>
+          <div class="text-xs text-slate-400 mt-0.5">Sent from official verified shortcode (telebirr)</div>
         </button>
 
         <!-- Scenario 3: Fayda OTP Scam (Police Raid) -->
-        <button onclick="pickScenario('case3', this)" class="scenario-pill text-left p-3.5 rounded-xl glass-card border transition-all duration-200 hover:border-slate-600">
-          <div class="flex items-center justify-between mb-1">
+        <button onclick="pickScenario('case3', this)" class="scenario-pill text-left p-3.5 rounded-xl glass-panel border transition-all duration-200 hover:border-slate-600">
+          <div class="flex items-center justify-between mb-1.5">
             <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
               OCT 17 POLICE RAID
             </span>
@@ -138,16 +158,38 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
         </button>
 
       </div>
+
+      <!-- Advanced Scenarios Drawer (Hidden by default) -->
+      <div id="advScenariosDrawer" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-800/80">
+        <button onclick="pickScenario('case6', this)" class="scenario-pill text-left p-3 rounded-xl glass-panel border border-purple-500/30 hover:border-purple-400 transition-all">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">GSMA FS.11</span>
+            <span class="text-xs text-slate-500 font-mono">#06</span>
+          </div>
+          <div class="text-xs font-semibold text-slate-200">A2P Grey Route Interconnect Bypass</div>
+          <div class="text-[11px] text-slate-400">Telebirr brand arriving over Foreign IPX link</div>
+        </button>
+
+        <button onclick="pickScenario('case7', this)" class="scenario-pill text-left p-3 rounded-xl glass-panel border border-red-500/30 hover:border-red-400 transition-all">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">BURNER SIM</span>
+            <span class="text-xs text-slate-500 font-mono">#07</span>
+          </div>
+          <div class="text-xs font-semibold text-slate-200">Mule SIM Burst Activity (Oct 17 Raid)</div>
+          <div class="text-[11px] text-slate-400">Fresh 2-hour SIM blasting transfer messages</div>
+        </button>
+      </div>
+
     </div>
 
-    <!-- Main Workspace: Simple 2-Card Layout -->
+    <!-- Main Workspace (5 Cols Input / 7 Cols Telemetry) -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       
-      <!-- Input Card (5 Cols) -->
-      <div class="lg:col-span-5 glass-card rounded-2xl p-5 space-y-4">
+      <!-- Left Column: Input Form (5 Cols) -->
+      <div class="lg:col-span-5 glass-panel rounded-2xl p-5 space-y-4">
         
         <div>
-          <label class="block text-xs font-semibold text-slate-400 mb-1 font-mono">SENDER ID (WHO SENT IT?)</label>
+          <label class="block text-xs font-semibold text-slate-400 mb-1 font-mono">SENDER ID (SOURCE ADDRESS)</label>
           <input type="text" id="senderInput" value="+251933445566"
             class="w-full bg-slate-950/80 border border-slate-800 focus:border-sky-500 rounded-xl px-3.5 py-2 text-sm font-mono text-slate-100 outline-none">
         </div>
@@ -158,16 +200,16 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
             class="w-full bg-slate-950/80 border border-slate-800 focus:border-sky-500 rounded-xl p-3 text-xs font-mono text-slate-100 leading-relaxed outline-none resize-none">Your telebirr account has been credited with 45,000.00 ETB by ABEBE KEBEDE. Txn ID: 9A8B7C6D. Current Balance: 48,200.00 ETB.</textarea>
         </div>
 
-        <!-- Collapsible Advanced Settings (Keeps Simple Mode Clean!) -->
+        <!-- Collapsible Advanced Settings (Progressive Disclosure) -->
         <div class="pt-2 border-t border-slate-800/80">
           <button type="button" onclick="toggleAdvanced()" class="w-full flex items-center justify-between text-xs text-slate-400 hover:text-sky-400 py-1 font-mono transition-colors">
             <span class="flex items-center gap-1.5">
-              <span>⚙️</span> Advanced Telecom Settings
+              <span>⚙️</span> Advanced Signaling Parameters
             </span>
             <span id="advToggleIcon" class="text-slate-500">▼ Expand</span>
           </button>
           
-          <div id="advancedDrawer" class="hidden mt-3 space-y-3 p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 text-xs">
+          <div id="advancedDrawer" class="hidden mt-3 space-y-3 p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 text-xs">
             <div>
               <label class="block text-[11px] font-mono text-slate-500 mb-1">INGRESS ROUTE CHANNEL</label>
               <select id="routeSelect" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs font-mono text-slate-200">
@@ -178,7 +220,7 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
             </div>
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <label class="block text-[11px] font-mono text-slate-500 mb-1">CALLING GT</label>
+                <label class="block text-[11px] font-mono text-slate-500 mb-1">CALLING GT (SCCP)</label>
                 <input type="text" id="gtInput" value="+251911000000" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-xs font-mono text-slate-200">
               </div>
               <div>
@@ -191,33 +233,54 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
 
         <button onclick="runInspection()" id="inspectBtn"
           class="w-full rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold py-2.5 px-4 text-xs tracking-wide transition-all shadow-lg shadow-sky-600/20 active:scale-[0.99] flex items-center justify-center gap-2">
-          <span>⚡ Run Live Inspection</span>
+          <span>⚡ Execute TelcoShield Inspection</span>
         </button>
 
       </div>
 
-      <!-- Results Side-by-Side (7 Cols) -->
+      <!-- Right Column: Results & Telemetry (7 Cols) -->
       <div class="lg:col-span-7 space-y-4">
         
-        <!-- Side-by-Side Comparison -->
+        <!-- Visual Pipeline Breadcrumbs -->
+        <div class="p-3 rounded-xl glass-panel text-xs flex items-center justify-between font-mono text-slate-400">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+            <span>SMPP Ingress</span>
+          </div>
+          <span>→</span>
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-300">mBERT NLP</span>
+            <span id="pipelineNlp" class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300">HAM</span>
+          </div>
+          <span>→</span>
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-300">Signaling Edge</span>
+          </div>
+          <span>→</span>
+          <div class="flex items-center gap-1.5 font-bold">
+            <span id="pipelineVerdict" class="text-rose-400">BLOCKED</span>
+          </div>
+        </div>
+
+        <!-- Side-by-Side Comparison Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           
           <!-- Box 1: PAiCore Baseline -->
-          <div class="glass-card rounded-2xl p-4 border border-slate-800/80">
-            <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-2">1. PAiCore Baseline (NLP)</div>
+          <div class="glass-panel rounded-2xl p-4 border border-slate-800/80">
+            <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-2">1. PAiCore Baseline (mBERT)</div>
             <div class="flex items-center justify-between mb-2">
               <span id="otsVerdictBadge" class="text-xs font-bold font-mono px-2.5 py-1 rounded bg-slate-800 text-slate-400">
                 WAITING
               </span>
-              <span id="otsConfidence" class="text-xs font-mono text-slate-400 font-semibold">--</span>
+              <span id="otsConfidence" class="text-xs font-mono text-slate-300 font-semibold">--</span>
             </div>
             <p class="text-[11px] text-slate-400 leading-normal" id="otsExplainer">
-              mBERT checks only message text semantics.
+              Evaluates raw message semantics without network metadata.
             </p>
           </div>
 
           <!-- Box 2: TelcoShield Result -->
-          <div class="glass-card rounded-2xl p-4 border-2 transition-all" id="telcoVerdictCard">
+          <div class="glass-panel rounded-2xl p-4 border-2 transition-all" id="telcoVerdictCard">
             <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-2">2. TelcoShield Telecom Edge</div>
             <div class="flex items-center justify-between mb-2">
               <span id="telcoVerdictBadge" class="text-xs font-bold font-mono px-2.5 py-1 rounded bg-slate-800 text-slate-400">
@@ -226,37 +289,41 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
               <span id="latencyDisplay" class="text-xs font-mono text-sky-400">-- ms</span>
             </div>
             <p class="text-[11px] text-slate-300 leading-normal font-medium" id="telcoActionDisplay">
-              Evaluates text + Sender ID + network route.
+              Evaluates text + Sender ID + Route + SIM Age.
             </p>
           </div>
 
         </div>
 
-        <!-- The "Why it Happened" Callout (Clean & Concise!) -->
+        <!-- The "Why it Happened" Callout (Override Alert) -->
         <div id="overrideCallout" style="display:none;" class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs space-y-1">
           <div class="font-bold flex items-center gap-1.5 text-amber-300">
-            <span>⚠️</span> Blind Spot Caught!
+            <span>🚨</span> Blind Spot Caught! (False Negative Overridden)
           </div>
           <p class="text-[11px] text-amber-200/90 leading-relaxed" id="overrideReasonText">
-            The message claims to be a Telebirr payment, but came from a personal SIM card (+2519...). Raw NLP called it legitimate, but TelcoShield blocked it at the network edge.
+            PAiCore's raw NLP classified this as legitimate (HAM). TelcoShield's telecom edge layer detected that the message claims to be an official payment receipt while originating from an unverified personal SIM card (+2519...). The message was dropped.
           </p>
         </div>
 
+        <!-- Triggered Rules Box -->
         <div id="ruleCallout" style="display:none;" class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs space-y-1">
-          <div class="text-[11px] font-mono text-slate-500 uppercase">Triggered Firewall Rule:</div>
-          <div id="ruleText" class="text-xs font-mono text-slate-300"></div>
+          <div class="text-[10px] font-mono text-slate-500 uppercase tracking-wider">Triggered Security Policy:</div>
+          <div id="ruleText" class="text-xs font-mono text-rose-400"></div>
         </div>
 
-        <!-- Bottom Toggle for CAMARA SIM Swap -->
-        <div class="pt-2">
-          <button type="button" onclick="toggleCamara()" class="w-full text-left p-3 rounded-xl glass-card border border-cyan-500/20 hover:border-cyan-500/40 transition-colors flex items-center justify-between text-xs text-cyan-400 font-semibold">
+        <!-- Collapsible CAMARA SIM Swap Gateway -->
+        <div class="pt-1">
+          <button type="button" onclick="toggleCamara()" class="w-full text-left p-3 rounded-xl glass-panel border border-cyan-500/20 hover:border-cyan-500/40 transition-colors flex items-center justify-between text-xs text-cyan-400 font-semibold">
             <span class="flex items-center gap-2">
-              <span>🌐</span> CAMARA SIM-Swap API Simulator (Zero-Trust Bank Check)
+              <span>🌐</span> CAMARA SIM-Swap API Simulator (Zero-Trust Bank Verification)
             </span>
             <span id="camaraToggleIcon" class="text-cyan-500">▼ Expand</span>
           </button>
           
-          <div id="camaraDrawer" class="hidden mt-3 p-4 rounded-xl bg-slate-950 border border-cyan-500/20 space-y-3 text-xs">
+          <div id="camaraDrawer" class="hidden mt-2 p-3.5 rounded-xl bg-slate-950 border border-cyan-500/20 space-y-3 text-xs">
+            <p class="text-[11px] text-slate-400">
+              Simulates a bank API call (CBE / Telebirr) to verify if the SIM card was swapped in the last 48 hours prior to releasing funds:
+            </p>
             <div class="flex gap-2">
               <input type="text" id="camaraPhone" value="+251933445566" class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 font-mono text-xs text-white">
               <button onclick="runCamaraCheck()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold px-3 py-1.5 rounded-lg text-xs">Check SIM Age</button>
@@ -272,7 +339,7 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
   </div>
 
   <footer class="max-w-5xl mx-auto w-full pt-4 mt-6 border-t border-slate-900 text-center text-xs text-slate-600 font-mono">
-    TelcoShield Minimal Demo · Powered by PAiCore OpenTextShield v2.11
+    TelcoShield Refactored Engine · Integrated with PAiCore OpenTextShield v2.11
   </footer>
 
   <script>
@@ -297,6 +364,20 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
         route: "domestic_onnet",
         gt: "+251911000000",
         sim_age: 720
+      },
+      case6: {
+        sender: "telebirr",
+        text: "Your telebirr account has been credited with 10,000 ETB.",
+        route: "international_ipx",
+        gt: "+447900000000",
+        sim_age: 720
+      },
+      case7: {
+        sender: "+251955667788",
+        text: "Urgent: Payment of 8,500 ETB sent for goods. Please confirm receipt and release package.",
+        route: "domestic_onnet",
+        gt: "+251911000000",
+        sim_age: 2
       }
     };
 
@@ -312,6 +393,18 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
       document.getElementById('simAgeSlider').value = s.sim_age;
       document.getElementById('simAgeVal').innerText = s.sim_age + 'h';
       runInspection();
+    }
+
+    function toggleAdvancedScenarios() {
+      const drawer = document.getElementById('advScenariosDrawer');
+      const btn = document.getElementById('advScenBtn');
+      if (drawer.classList.contains('hidden')) {
+        drawer.classList.remove('hidden');
+        btn.innerText = "- Hide Advanced Scenarios";
+      } else {
+        drawer.classList.add('hidden');
+        btn.innerText = "+ Show Advanced Scenarios (Grey Route / Mule SIM)";
+      }
     }
 
     function toggleAdvanced() {
@@ -367,12 +460,23 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
         alert("Error: " + e);
       } finally {
         btn.disabled = false;
-        btn.innerText = "⚡ Run Live Inspection";
+        btn.innerText = "⚡ Execute TelcoShield Inspection";
       }
     }
 
     function renderCleanResults(data) {
       document.getElementById('latencyDisplay').innerText = data.total_latency_ms + " ms";
+
+      // Pipeline Breadcrumbs
+      const pipeNlp = document.getElementById('pipelineNlp');
+      pipeNlp.innerText = data.paicore_nlp_label.toUpperCase();
+      pipeNlp.className = data.paicore_nlp_label === 'ham' ? 
+        "text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-mono" : 
+        "text-[10px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 font-mono";
+
+      const pipeVerdict = document.getElementById('pipelineVerdict');
+      pipeVerdict.innerText = data.final_verdict;
+      pipeVerdict.className = data.final_verdict === 'BLOCKED_FRAUD' ? "text-rose-400 font-bold" : "text-emerald-400 font-bold";
 
       // 1. Baseline Card
       const otsBadge = document.getElementById('otsVerdictBadge');
@@ -394,12 +498,12 @@ HTML_CLEAN_UI = """<!DOCTYPE html>
 
       if (data.final_verdict === 'BLOCKED_FRAUD') {
         telcoBadge.className = "text-xs font-bold font-mono px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40";
-        telcoCard.className = "glass-card rounded-2xl p-4 border-2 border-rose-500/50 bg-rose-950/10";
-        document.getElementById('telcoActionDisplay').innerText = "Action: DROPPED at SMSC Gateway.";
+        telcoCard.className = "glass-panel rounded-2xl p-4 border-2 border-rose-500/50 bg-rose-950/10";
+        document.getElementById('telcoActionDisplay').innerText = "Gateway Action: DROPPED at Carrier SMSC.";
       } else {
         telcoBadge.className = "text-xs font-bold font-mono px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
-        telcoCard.className = "glass-card rounded-2xl p-4 border-2 border-emerald-500/50 bg-emerald-950/10";
-        document.getElementById('telcoActionDisplay').innerText = "Action: DELIVERED to subscriber phone.";
+        telcoCard.className = "glass-panel rounded-2xl p-4 border-2 border-emerald-500/50 bg-emerald-950/10";
+        document.getElementById('telcoActionDisplay').innerText = "Gateway Action: DELIVERED to subscriber phone.";
       }
 
       // Override Alert
@@ -452,12 +556,12 @@ class TelcoShieldHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            self.wfile.write(HTML_CLEAN_UI.encode("utf-8"))
+            self.wfile.write(HTML_REFACTORED_UI.encode("utf-8"))
         elif self.path == "/health" or self.path == "/api/health":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"status": "ok", "mode": "clean_demo"}).encode("utf-8"))
+            self.wfile.write(json.dumps({"status": "ok", "engine": "refactored_v1"}).encode("utf-8"))
         else:
             self.send_response(404)
             self.end_headers()
@@ -474,33 +578,25 @@ class TelcoShieldHandler(BaseHTTPRequestHandler):
         if self.path == "/api/inspect":
             sender_id = payload.get("sender_id", "")
             text = payload.get("text", "")
-            ingress_route = payload.get("ingress_route", "domestic_onnet")
+            route_str = payload.get("ingress_route", "domestic_onnet")
             calling_gt = payload.get("calling_gt", "+251911000000")
             sim_age_hours = float(payload.get("sim_age_hours", 720.0))
 
-            result = adapter.inspect_message(
+            try:
+                route = IngressRoute(route_str)
+            except ValueError:
+                route = IngressRoute.DOMESTIC_ONNET
+
+            context = MessageContext(
                 sender_id=sender_id,
                 text=text,
-                ingress_route=ingress_route,
+                ingress_route=route,
                 calling_gt=calling_gt,
                 sim_age_hours=sim_age_hours
             )
 
-            response_data = {
-                "sender_id": result.sender_id,
-                "message_text": result.message_text,
-                "ingress_route": result.ingress_route,
-                "calling_gt": result.calling_gt,
-                "sim_age_hours": result.sim_age_hours,
-                "paicore_nlp_label": result.paicore_nlp_label,
-                "paicore_nlp_confidence": result.paicore_nlp_confidence,
-                "paicore_processing_time": result.paicore_processing_time,
-                "final_verdict": result.final_verdict,
-                "threat_severity": result.threat_severity,
-                "rule_triggers": result.rule_triggers,
-                "metadata_override": result.metadata_override,
-                "total_latency_ms": result.total_latency_ms
-            }
+            report = engine.inspect(context)
+            response_data = report.to_dict()
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -544,7 +640,7 @@ class TelcoShieldHandler(BaseHTTPRequestHandler):
 def main():
     port = 8090
     server = HTTPServer(("0.0.0.0", port), TelcoShieldHandler)
-    print(f"[*] TelcoShield Clean Demo running at http://localhost:{port}")
+    print(f"[*] TelcoShield Refactored UI Live Demo running at http://localhost:{port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
