@@ -661,6 +661,154 @@
       }
     }
 
+    function renderCleanResults(data) {
+      document.getElementById('latencyDisplay').innerText = data.total_latency_ms + " ms";
+
+      // 1. Baseline Card
+      const otsBadge = document.getElementById('otsVerdictBadge');
+      otsBadge.innerText = data.paicore_nlp_label.toUpperCase();
+      document.getElementById('otsConfidence').innerText = (data.paicore_nlp_confidence * 100).toFixed(1) + "%";
+
+      if (data.paicore_nlp_label === 'ham') {
+        otsBadge.className = "text-xs font-bold font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+        document.getElementById('otsExplainer').innerText = "mBERT classified text as legitimate (HAM).";
+      } else {
+        otsBadge.className = "text-xs font-bold font-mono px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30";
+        document.getElementById('otsExplainer').innerText = "mBERT detected phishing/scam words.";
+      }
+
+      // 2. TelcoShield Card
+      const telcoCard = document.getElementById('telcoVerdictCard');
+      const telcoBadge = document.getElementById('telcoVerdictBadge');
+      telcoBadge.innerText = data.final_verdict;
+
+      if (data.final_verdict === 'BLOCKED_FRAUD') {
+        telcoBadge.className = "text-xs font-bold font-mono px-2.5 py-1 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40";
+        telcoCard.className = "glass-panel rounded-2xl p-4 border-2 border-rose-500/50 bg-rose-950/10";
+        document.getElementById('telcoActionDisplay').innerText = "Gateway Action: DROPPED at Carrier SMSC.";
+      } else {
+        telcoBadge.className = "text-xs font-bold font-mono px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
+        telcoCard.className = "glass-panel rounded-2xl p-4 border-2 border-emerald-500/50 bg-emerald-950/10";
+        document.getElementById('telcoActionDisplay').innerText = "Gateway Action: DELIVERED to subscriber phone.";
+      }
+
+      // Override Alert
+      const callout = document.getElementById('overrideCallout');
+      if (data.metadata_override) {
+        callout.style.display = "block";
+      } else {
+        callout.style.display = "none";
+      }
+
+      // Rules
+      const ruleBox = document.getElementById('ruleCallout');
+      if (data.rule_triggers && data.rule_triggers.length > 0) {
+        ruleBox.style.display = "block";
+        document.getElementById('ruleText').innerText = data.rule_triggers[0];
+      } else {
+        ruleBox.style.display = "none";
+      }
+    }
+
+    // ANIMATE NETWORK FLOW FUNCTION
+    function animateNetworkFlow(data) {
+      const packet = document.getElementById('travelingPacket');
+      const flowLine = document.getElementById('activeFlowLine');
+      const statusText = document.getElementById('flowStatusText');
+
+      const node1 = document.getElementById('node1');
+      const node2 = document.getElementById('node2');
+      const node3 = document.getElementById('node3');
+      const node4 = document.getElementById('node4');
+      const node5 = document.getElementById('node5');
+
+      // Update Subtitles
+      document.getElementById('node1Sub').innerText = data.sender_id.length > 12 ? data.sender_id.substring(0, 10) + '..' : data.sender_id;
+      document.getElementById('node2Sub').innerText = data.ingress_route;
+      document.getElementById('node3Sub').innerText = data.paicore_nlp_label.toUpperCase() + ' (' + (data.paicore_nlp_confidence * 100).toFixed(0) + '%)';
+      document.getElementById('node3Sub').className = data.paicore_nlp_label === 'ham' ? "text-[9px] font-mono text-emerald-400" : "text-[9px] font-mono text-rose-400";
+      document.getElementById('node4Sub').innerText = data.final_verdict;
+      document.getElementById('node4Sub').className = data.final_verdict === 'BLOCKED_FRAUD' ? "text-[9px] font-mono text-rose-400 font-bold" : "text-[9px] font-mono text-emerald-400 font-bold";
+
+      // Reset Styles
+      [node1, node2, node3, node4, node5].forEach(n => {
+        n.className = "w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-sm shadow-md transition-all";
+      });
+
+      // Animate Progression
+      packet.style.left = "5%";
+      packet.className = "packet-orb absolute top-1/2 -translate-y-4 w-4 h-4 rounded-full bg-sky-400 shadow-lg shadow-sky-400/50 z-20 flex items-center justify-center text-[8px] font-bold text-slate-950 pointer-events-none";
+      flowLine.setAttribute('x2', '5%');
+      statusText.innerText = "Transmitting PDU from originator...";
+
+      // Stage 1: Originator to Ingress (200ms)
+      setTimeout(() => {
+        packet.style.left = "27%";
+        flowLine.setAttribute('x2', '27%');
+        node2.className = "w-10 h-10 rounded-xl bg-slate-900 border-2 border-sky-400 flex items-center justify-center text-sm shadow-lg shadow-sky-400/20";
+        statusText.innerText = "Ingress verified via " + data.ingress_route;
+      }, 250);
+
+      // Stage 2: Ingress to PAiCore mBERT (600ms)
+      setTimeout(() => {
+        packet.style.left = "50%";
+        flowLine.setAttribute('x2', '50%');
+        if (data.paicore_nlp_label === 'ham') {
+          node3.className = "w-10 h-10 rounded-xl bg-emerald-950/40 border-2 border-emerald-500 flex items-center justify-center text-sm shadow-lg shadow-emerald-500/20 text-emerald-400";
+          statusText.innerText = "mBERT NLP analyzed text: Classified HAM (Legitimate)";
+        } else {
+          node3.className = "w-10 h-10 rounded-xl bg-rose-950/40 border-2 border-rose-500 flex items-center justify-center text-sm shadow-lg shadow-rose-500/20 text-rose-400";
+          statusText.innerText = "mBERT NLP flagged phishing patterns!";
+        }
+      }, 650);
+
+      // Stage 3: mBERT to TelcoShield Edge (1100ms)
+      setTimeout(() => {
+        packet.style.left = "73%";
+        flowLine.setAttribute('x2', '73%');
+
+        if (data.final_verdict === 'BLOCKED_FRAUD') {
+          // INTERCEPTED & DROPPED!
+          node4.className = "w-10 h-10 rounded-xl bg-rose-950/60 border-2 border-rose-500 flex items-center justify-center text-sm shadow-xl shadow-rose-500/30 text-rose-400";
+          packet.className = "packet-orb absolute top-1/2 -translate-y-4 w-5 h-5 rounded-full bg-rose-500 shadow-xl shadow-rose-500/80 z-20 flex items-center justify-center text-[10px] text-white font-bold pointer-events-none scale-125";
+          packet.innerText = "🛑";
+          flowLine.setAttribute('stroke', '#f43f5e');
+          
+          if (data.metadata_override) {
+            statusText.innerHTML = "<span class='text-amber-400 font-bold'>🚨 BLOCKED! Metadata Layer intercepted NLP false negative!</span>";
+          } else {
+            statusText.innerHTML = "<span class='text-rose-400 font-bold'>🚨 BLOCKED! Dropped at SMSC border. Handset protected.</span>";
+          }
+          
+          // Destination is safe
+          node5.className = "w-10 h-10 rounded-xl bg-slate-900 border border-emerald-500/40 flex items-center justify-center text-sm opacity-60";
+          document.getElementById('node5Sub').innerText = "PROTECTED";
+        } else {
+          // ALLOWED: Transits smoothly to Destination Handset
+          node4.className = "w-10 h-10 rounded-xl bg-emerald-950/40 border-2 border-emerald-500 flex items-center justify-center text-sm shadow-lg shadow-emerald-500/20 text-emerald-400";
+          
+          setTimeout(() => {
+            packet.style.left = "95%";
+            flowLine.setAttribute('x2', '95%');
+            flowLine.setAttribute('stroke', '#10b981');
+            node5.className = "w-10 h-10 rounded-xl bg-emerald-950/60 border-2 border-emerald-500 flex items-center justify-center text-sm shadow-xl shadow-emerald-500/30 text-emerald-400";
+            packet.className = "packet-orb absolute top-1/2 -translate-y-4 w-4 h-4 rounded-full bg-emerald-400 shadow-lg shadow-emerald-400/50 z-20 flex items-center justify-center text-[8px] text-slate-950 font-bold pointer-events-none";
+            packet.innerText = "✓";
+            statusText.innerHTML = "<span class='text-emerald-400 font-bold'>✓ DELIVERED: Official verified message safely arrived at handset.</span>";
+            document.getElementById('node5Sub').innerText = "DELIVERED";
+          }, 400);
+        }
+      }, 1100);
+    }
+
+    function replayFlowAnimation() {
+      if (lastResultData) {
+        animateNetworkFlow(lastResultData);
+      } else {
+        runInspection();
+      }
+    }
+
     async function runCamaraCheck() {
       const phone = document.getElementById("camaraPhone").value;
       const out = document.getElementById("camaraOutput");
