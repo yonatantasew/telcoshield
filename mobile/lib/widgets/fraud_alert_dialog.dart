@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../engine/models.dart';
 
 /// Full-screen high-urgency alert modal displayed to merchants when a fake payment receipt arrives
@@ -11,6 +12,36 @@ class FraudAlertDialog extends StatelessWidget {
     required this.report,
     required this.onDismiss,
   });
+
+  void _copyPoliceReport(BuildContext context) {
+    final reportText = '''
+========================================
+ETHIOPIAN POLICE / CARRIER FRAUD REPORT
+TelcoShield On-Device Merchant Incident
+========================================
+Incident Timestamp: ${report.timestamp.toIso8601String()}
+Scammer Phone Number: ${report.senderId}
+Threat: Fake Telebirr / CBE Payment Receipt
+Severity: ${report.severity.name.toUpperCase()}
+Risk Score: ${(report.riskScore * 100).toStringAsFixed(1)}%
+
+SMS Message Body:
+"${report.messageBody}"
+
+Violations:
+${report.violations.map((v) => '- [${v.ruleCode}] ${v.title}: ${v.description}').join('\n')}
+
+Action Taken: MERCHANDISE RELEASE HALTED
+========================================''';
+
+    Clipboard.setData(ClipboardData(text: reportText));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Police Incident Report copied to clipboard!'),
+        backgroundColor: Color(0xFF0284C7),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,14 +82,14 @@ class FraudAlertDialog extends StatelessWidget {
                         style: TextStyle(
                           color: Color(0xFFEF4444),
                           fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                          fontSize: 17,
                           letterSpacing: 0.5,
                         ),
                       ),
                       Text(
-                        'DO NOT RELEASE GOODS / CASH',
+                        'የሀሰት የክፍያ ደረሰኝ — እቃ እንዳይሰጡ!',
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: Color(0xFFFCA5A5),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -68,13 +99,13 @@ class FraudAlertDialog extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: const Color(0xFF1E293B),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.Border.all(color: Colors.white10),
+                border: Border.all(color: Colors.white10),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,7 +124,7 @@ class FraudAlertDialog extends StatelessWidget {
                     report.messageBody,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: 13,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -102,16 +133,16 @@ class FraudAlertDialog extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Sender Number:',
+                        'Sender Address:',
                         style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                       ),
                       Text(
-                        report.senderId,
+                        '${report.senderId} (Personal SIM)',
                         style: const TextStyle(
                           color: Color(0xFFEF4444),
                           fontFamily: 'monospace',
                           fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -121,16 +152,16 @@ class FraudAlertDialog extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Official Sender ID:',
+                        'Official Whitelist:',
                         style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                       ),
                       Text(
-                        'telebirr / CBEBirr',
+                        'telebirr (127) / CBE (889)',
                         style: TextStyle(
                           color: Color(0xFF10B981),
                           fontFamily: 'monospace',
                           fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -138,14 +169,14 @@ class FraudAlertDialog extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             ...report.violations.map((v) => Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEF4444).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
+                    border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.3)),
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,26 +188,45 @@ class FraudAlertDialog extends StatelessWidget {
                           v.description,
                           style: const TextStyle(
                             color: Color(0xFFFCA5A5),
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                       ),
                     ],
                   ),
                 )),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              onPressed: onDismiss,
-              child: const Text(
-                'I UNDERSTAND — REPORT & CLOSE',
-                style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
-              ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF38BDF8),
+                      side: const BorderSide(color: Color(0xFF38BDF8)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    icon: const Icon(Icons.copy, size: 16),
+                    label: const Text('Police Report', style: TextStyle(fontSize: 11)),
+                    onPressed: () => _copyPoliceReport(context),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: onDismiss,
+                    child: const Text(
+                      'HALT SALE & CLOSE',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

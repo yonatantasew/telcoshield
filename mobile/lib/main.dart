@@ -40,6 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final List<InspectionReport> _history = [];
   int _blockedCount = 0;
   int _verifiedCount = 0;
+  bool _shieldActive = true;
 
   final TextEditingController _senderController = TextEditingController(text: '+251933445566');
   final TextEditingController _bodyController = TextEditingController(
@@ -70,6 +71,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String body,
     bool silent = false,
   }) {
+    if (!_shieldActive) return;
+
     final report = TelcoShieldRuleEngine.inspect(
       senderId: senderId,
       messageBody: body,
@@ -129,22 +132,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: _shieldActive ? 'Pause Shield' : 'Activate Shield',
+            icon: Icon(
+              _shieldActive ? Icons.shield : Icons.shield_outlined,
+              color: _shieldActive ? const Color(0xFF10B981) : Colors.grey,
+            ),
+            onPressed: () {
+              setState(() {
+                _shieldActive = !_shieldActive;
+              });
+            },
+          ),
           Container(
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withOpacity(0.1),
+              color: _shieldActive
+                  ? const Color(0xFF10B981).withOpacity(0.1)
+                  : Colors.grey.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
-              border: Border.Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+              border: Border.all(
+                color: _shieldActive
+                    ? const Color(0xFF10B981).withOpacity(0.3)
+                    : Colors.grey.withOpacity(0.3),
+              ),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.check_circle, color: Color(0xFF10B981), size: 12),
-                SizedBox(width: 4),
+                Icon(
+                  _shieldActive ? Icons.check_circle : Icons.pause_circle_outline,
+                  color: _shieldActive ? const Color(0xFF10B981) : Colors.grey,
+                  size: 12,
+                ),
+                const SizedBox(width: 4),
                 Text(
-                  'ACTIVE',
+                  _shieldActive ? 'ACTIVE' : 'PAUSED',
                   style: TextStyle(
-                    color: Color(0xFF10B981),
+                    color: _shieldActive ? const Color(0xFF10B981) : Colors.grey,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
@@ -173,7 +198,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildKpiCard(
-                    title: 'LEGIT RECEIPTS',
+                    title: 'LEGIT VERIFIED',
                     count: '$_verifiedCount',
                     color: const Color(0xFF10B981),
                     icon: Icons.verified_user_outlined,
@@ -181,21 +206,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // Live Simulator / Test Box
+            // Federal Police Notice Banner
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.3)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Color(0xFF38BDF8), size: 18),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Merkato Anti-Fraud Mode Active: Correlating personal SIMs against Telebirr (127) and CBE (889) shortcodes.',
+                      style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Simulator / Verification Box
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: const Color(0xFF1E293B),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.Border.all(color: Colors.white10),
+                border: Border.all(color: Colors.white10),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'TEST INCOMING SMS (ON-DEVICE SIMULATOR)',
+                    'ON-DEVICE SMS INSPECTION & TEST BOX',
                     style: TextStyle(
                       color: Color(0xFF94A3B8),
                       fontSize: 11,
@@ -207,7 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   TextField(
                     controller: _senderController,
                     decoration: InputDecoration(
-                      labelText: 'Sender Address (MSISDN / Shortcode)',
+                      labelText: 'Sender Address (e.g. +2519... or telebirr)',
                       labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                       filled: true,
                       fillColor: const Color(0xFF0F172A),
@@ -220,7 +268,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     controller: _bodyController,
                     maxLines: 2,
                     decoration: InputDecoration(
-                      labelText: 'SMS Content / Payment Receipt',
+                      labelText: 'Incoming SMS Text (English or Amharic)',
                       labelStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                       filled: true,
                       fillColor: const Color(0xFF0F172A),
@@ -228,7 +276,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
+                  
+                  // Presets Row 1 (English)
+                  const Text(
+                    'Quick Presets (English):',
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontFamily: 'monospace'),
+                  ),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Expanded(
@@ -236,9 +291,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           onPressed: () {
                             _senderController.text = 'telebirr';
                             _bodyController.text =
-                                'Your telebirr account has been credited with 2,000 ETB. Ref: TX776192.';
+                                'Your telebirr account has been credited with 45,000 ETB from CBE Birr. Ref: TX998123.';
                           },
-                          child: const Text('Preset: Legit Telebirr', style: TextStyle(fontSize: 11)),
+                          child: const Text('Legit Telebirr', style: TextStyle(fontSize: 11)),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -249,12 +304,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             _bodyController.text =
                                 'Your telebirr account has been credited with 45,000 ETB from CBE Birr. Ref: TX998123.';
                           },
-                          child: const Text('Preset: Fake Receipt', style: TextStyle(fontSize: 11)),
+                          child: const Text('Fake Telebirr', style: TextStyle(fontSize: 11, color: Color(0xFFF87171))),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
+
+                  // Presets Row 2 (Amharic ግዕዝ)
+                  const Text(
+                    'ፈጣን ምሳሌዎች (በአማርኛ):',
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontFamily: 'monospace'),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            _senderController.text = '127';
+                            _bodyController.text =
+                                'የቴሌብር ሂሳብዎ በ 45,000 ብር ተሞልቷል። ቀሪ ሂሳብ 52,100 ብር። የግብይት ቁጥር: TX998123።';
+                          },
+                          child: const Text('ትክክለኛ ቴሌብር (127)', style: TextStyle(fontSize: 11)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            _senderController.text = '+251912345678';
+                            _bodyController.text =
+                                'የቴሌብር ሂሳብዎ በ 45,000 ብር ተሞልቷል። ቀሪ ሂሳብ 52,100 ብር። የግብይት ቁጥር: TX998123።';
+                          },
+                          child: const Text('የሀሰት ደረሰኝ (ስልክ)', style: TextStyle(fontSize: 11, color: Color(0xFFF87171))),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -265,7 +354,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       icon: const Icon(Icons.flash_on, size: 18),
-                      label: const Text('Simulate Incoming SMS Intercept'),
+                      label: const Text('⚡ Inspect SMS with TelcoShield'),
                       onPressed: () {
                         _inspectMessage(
                           senderId: _senderController.text,
@@ -279,7 +368,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Intercept History Feed
+            // Live Feed
             const Text(
               'LIVE ON-DEVICE INSPECTION FEED',
               style: TextStyle(
@@ -308,7 +397,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(16),
-        border: Border.Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -352,7 +441,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF131C2E),
         borderRadius: BorderRadius.circular(12),
-        border: Border.Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

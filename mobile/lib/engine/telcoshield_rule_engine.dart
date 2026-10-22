@@ -2,17 +2,29 @@ import 'models.dart';
 
 /// On-Device Carrier-Grade SMS Fraud Inspection Engine (Dart / Flutter)
 /// Evaluates incoming SMS in <1ms without requiring external internet or API access.
+/// Supports both English and Amharic (ግዕዝ) payment receipts.
 class TelcoShieldRuleEngine {
+  // Official carrier-whitelisted sender IDs and authorized SMS shortcodes
   static final List<String> brandWhitelist = [
     'telebirr',
+    '127',               // Official Ethio Telecom Telebirr Shortcode
     'cbebirr',
     'cbe',
+    '889',               // Official Commercial Bank of Ethiopia Shortcode
     'mpesa',
     'm-pesa',
+    '707',               // Official Safaricom M-PESA Shortcode
     'awashbank',
+    'awashbirr',
+    '8989',              // Official Awash Bank Shortcode
     'bankofabyssinia',
+    'boa',
+    '811',               // Official Bank of Abyssinia Shortcode
+    'dashenbank',
+    'amole',
   ];
 
+  // Financial brand triggers (English & Amharic / ግዕዝ)
   static final List<String> financialBrands = [
     'telebirr',
     'cbe birr',
@@ -21,11 +33,23 @@ class TelcoShieldRuleEngine {
     'm-pesa',
     'mpesa',
     'awash birr',
-    'awashbirr',
+    'awashbank',
     'boa',
     'abyssinia',
+    'dashen',
+    'amole',
+    // Amharic script
+    'ቴሌብር',
+    'ቴሌ ብር',
+    'ሲቢኢ',
+    'የኢትዮጵያ ንግድ ባንክ',
+    'ኤምፔሳ',
+    'አዋሽ ባንክ',
+    'አቢሲኒያ',
+    'ዳሽን',
   ];
 
+  // Credential & identity harvesting triggers (English & Amharic)
   static final List<String> authBrands = [
     'telebirr',
     'cbe birr',
@@ -36,8 +60,13 @@ class TelcoShieldRuleEngine {
     'national id',
     'nid',
     'bank',
+    // Amharic script
+    'ፋይዳ',
+    'ብሔራዊ መታወቂያ',
+    'ባንክ',
   ];
 
+  // Financial transaction receipt keywords (English & Amharic)
   static final List<String> financialKeywords = [
     'credited with',
     'debited',
@@ -51,8 +80,19 @@ class TelcoShieldRuleEngine {
     'ref:',
     'tx:',
     'transaction id',
+    // Amharic script
+    'ተሞልቷል',
+    'ተቀብለዋል',
+    'ተላልፏል',
+    'ተቆርጧል',
+    'ብር',
+    'ሂሳብ',
+    'ቀሪ ሂሳብ',
+    'የግብይት ቁጥር',
+    'የትራንዛክሽን ቁጥር',
   ];
 
+  // Authentication & OTP keywords (English & Amharic)
   static final List<String> authKeywords = [
     'otp',
     'verification code',
@@ -62,8 +102,15 @@ class TelcoShieldRuleEngine {
     'your code is',
     'one-time password',
     'security code',
+    // Amharic script
+    'የይለፍ ቃል',
+    'የማረጋገጫ ኮድ',
+    'ኦቲፒ',
+    'ለማንም አያጋሩ',
+    'ኮድዎ',
   ];
 
+  // Weaponized URL shorteners & lookalike domains
   static final List<String> urlShorteners = [
     'bit.ly',
     'tinyurl.com',
@@ -97,8 +144,8 @@ class TelcoShieldRuleEngine {
       violations.add(RuleViolation(
         ruleCode: 'RULE-META-001',
         severity: ThreatSeverity.critical,
-        title: 'Fake Financial Transaction Receipt',
-        description: 'Message claims an official payment or credit receipt, but originates from a personal phone number ($senderTrimmed) rather than the official verified carrier shortcode.',
+        title: 'Fake Financial Transaction Receipt / የሀሰት ክፍያ ደረሰኝ',
+        description: 'Message claims an official financial payment/credit, but originates from an unverified phone number ($senderTrimmed) rather than official carrier shortcodes (127, 889, telebirr, CBEBirr).',
       ));
     }
 
@@ -110,8 +157,8 @@ class TelcoShieldRuleEngine {
       violations.add(RuleViolation(
         ruleCode: 'RULE-META-002',
         severity: ThreatSeverity.critical,
-        title: 'Unauthorized OTP / Credential Request',
-        description: 'Message requests sensitive verification codes (OTP/PIN/Fayda) from an unverified personal sender ($senderTrimmed).',
+        title: 'Unauthorized OTP / Credential Harvesting',
+        description: 'Message requests sensitive verification codes (OTP/PIN/Fayda) from an unauthorized personal sender ($senderTrimmed).',
       ));
     }
 
@@ -122,7 +169,7 @@ class TelcoShieldRuleEngine {
         ruleCode: 'RULE-URL-001',
         severity: ThreatSeverity.high,
         title: 'Suspicious / Weaponized URL Shortener',
-        description: 'Message contains an unverified URL or link shortener known to circumvent basic spam filters.',
+        description: 'Message contains an unverified URL shortener known to circumvent basic spam filters.',
       ));
     }
 
